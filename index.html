@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Renomake - cosméticos, skincare e beleza com produtos premium e atendimento via WhatsApp."
+    />
+    <title>RENOMAKE | Cosméticos e Maquiagens</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="brand" href="#inicio" aria-label="Ir para o início da Renomake">
+          <!-- ================================================= -->
+          <!-- ALTERE A LOGO AQUI -->
+          <!-- ================================================= -->
+          <img src="assets/images/logo.png" alt="Logo Renomake" class="brand-logo" />
+        </a>
+
+        <nav class="main-nav" aria-label="Menu principal">
+          <a href="#inicio">Início</a>
+          <a href="#produtos">Produtos</a>
+          <a href="#produtos">Cosméticos</a>
+          <a href="#ofertas">Ofertas</a>
+          <a href="#contato">Contato</a>
+        </nav>
+
+        <div class="header-actions">
+          <label class="search-box" aria-label="Buscar produtos">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="searchInput" type="search" placeholder="Buscar produtos..." />
+          </label>
+
+          <button id="cartToggle" class="cart-button" type="button" aria-label="Abrir carrinho">
+            <span aria-hidden="true">🛒</span>
+            <span class="cart-badge" id="cartCount">0</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" id="inicio">
+        <div class="container hero-inner">
+          <div class="hero-copy reveal-up">
+            <p class="eyebrow">Beleza, cuidado e elegância em um só lugar.</p>
+            <h1>RENOMAKE</h1>
+            <p class="hero-text">
+              Descubra cosméticos premium, hidratação e sofisticação para realçar sua rotina de beleza com
+              leveza e confiança.
+            </p>
+            <div class="hero-actions">
+              <a href="#produtos" class="btn btn-primary">VER PRODUTOS</a>
+            </div>
+          </div>
+
+          <div class="hero-visual reveal-up" aria-hidden="true">
+            <div class="hero-shape hero-shape-one"></div>
+            <div class="hero-shape hero-shape-two"></div>
+            <div class="hero-card">
+              <span>Premium</span>
+              <strong>Beauty</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="catalog" id="produtos">
+        <div class="container">
+          <div class="catalog-top reveal-up">
+            <div>
+              <p class="section-tag">Catálogo</p>
+              <h2>Produtos em destaque</h2>
+            </div>
+            <div class="catalog-counter">
+              <span id="productCount">0</span>
+              <span>itens</span>
+            </div>
+          </div>
+
+          <div class="filter-bar reveal-up" aria-label="Filtrar produtos">
+            <button type="button" class="filter-btn active" data-filter="all">Todos</button>
+          </div>
+
+          <div id="productGrid" class="product-grid" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="stores" id="ofertas">
+        <div class="container stores-inner reveal-up">
+          <div class="section-heading stores-heading">
+            <p class="section-tag">Loja</p>
+            <h2>Onde nos encontrar</h2>
+          </div>
+
+          <div class="store-links">
+            <a class="store-card store-shopee unavailable" href="#" data-store="shopee" aria-disabled="true">
+              <svg class="store-icon" viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M12 17h24l2.5 25h-29L12 17Z" fill="currentColor" />
+                <path d="M17 18v-4a7 7 0 0 1 14 0v4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                <path d="M30.6 24.1c-1.1-1.2-2.7-1.8-4.6-1.8-2.8 0-4.7 1.4-4.7 3.5 0 2.2 1.9 2.9 4.3 3.5 1.9.5 2.8.8 2.8 1.6 0 .8-.8 1.3-2.1 1.3-1.6 0-3-.6-4.1-1.8l-1.8 2.1c1.4 1.6 3.5 2.4 5.9 2.4 3.2 0 5.1-1.6 5.1-3.9 0-2.2-1.8-3-4.4-3.7-1.8-.5-2.7-.7-2.7-1.5 0-.7.7-1.1 1.8-1.1 1.4 0 2.5.5 3.5 1.4l1.1-2Z" fill="#ee4d2d" />
+              </svg>
+              <span>Shopee</span>
+              <small>Visite nossa loja</small>
+            </a>
+            <a class="store-card store-mercadolivre unavailable" href="#" data-store="mercadoLivre" aria-disabled="true">
+              <svg class="store-icon" viewBox="0 0 48 48" aria-hidden="true">
+                <ellipse cx="24" cy="24" rx="22" ry="15" fill="none" stroke="currentColor" stroke-width="4" />
+                <path d="m9 24 8-5c1.7-1 3.6-.5 5 1l2 2 2-2c1.4-1.5 3.3-2 5-1l8 5-5 6-6-3-4 4-4-4-6 3-5-6Z" fill="currentColor" />
+                <path d="m17 19 7 6 7-6M19 27l5 4 5-4" fill="none" stroke="#ffe600" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>Mercado Livre</span>
+              <small>Visite nossa loja</small>
+            </a>
+            <a class="store-card store-whatsapp" href="https://wa.me/5518996115273" target="_blank" rel="noreferrer">
+              <svg class="store-icon" viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="currentColor" d="M24 3.5A20.2 20.2 0 0 0 6.7 34.1L4 44l10.2-2.7A20.2 20.2 0 1 0 24 3.5Zm0 36.5c-3 0-5.9-.8-8.4-2.4l-.6-.4-6 1.6 1.6-5.8-.4-.6A16.4 16.4 0 1 1 24 40Zm9-12.3c-.5-.2-2.7-1.3-3.2-1.4-.4-.2-.8-.2-1.1.3-.3.5-1.2 1.4-1.5 1.7-.3.3-.5.4-1 .1-.5-.2-2-.7-3.8-2.3-1.4-1.2-2.3-2.7-2.6-3.2-.3-.5 0-.7.2-.9l.7-.8c.2-.3.3-.5.5-.8.1-.3 0-.6 0-.8-.1-.2-1-2.4-1.4-3.3-.4-.9-.8-.8-1.1-.8h-.9c-.3 0-.8.1-1.2.6-.4.5-1.6 1.6-1.6 3.8s1.6 4.4 1.8 4.7c.2.3 3.1 4.8 7.5 6.7 1 .4 1.8.7 2.4.9 1 .3 1.9.3 2.6.2.8-.1 2.7-1.1 3.1-2.1.4-1 .4-1.9.3-2.1-.1-.2-.4-.3-.9-.5Z" />
+              </svg>
+              <span>WhatsApp</span>
+              <small>Fale com a gente</small>
+            </a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer" id="contato">
+      <div class="container footer-inner">
+        <div>
+          <img src="assets/images/logo.png" alt="Logo Renomake" class="footer-logo" />
+        </div>
+        <p>RENOMAKE • Beleza, elegância e cuidado.</p>
+        <a href="https://wa.me/5518996115273" target="_blank" rel="noreferrer">Atendimento via WhatsApp</a>
+      </div>
+    </footer>
+
+    <aside class="cart-panel" id="cartPanel" aria-hidden="true">
+      <div class="cart-header">
+        <h3>Carrinho</h3>
+        <button id="closeCart" type="button" aria-label="Fechar carrinho">×</button>
+      </div>
+
+      <div id="cartItems" class="cart-items" aria-live="polite"></div>
+
+      <div class="cart-footer">
+        <div class="cart-total">
+          <span>TOTAL DO PEDIDO</span>
+          <strong id="cartTotal">R$ 0,00</strong>
+        </div>
+
+        <button id="checkoutButton" type="button" class="btn btn-primary btn-full">
+          FINALIZAR PEDIDO PELO WHATSAPP
+        </button>
+      </div>
+    </aside>
+
+    <div id="toast" class="toast" role="status" aria-live="polite">Produto adicionado ao carrinho</div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
