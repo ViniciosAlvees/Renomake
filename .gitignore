@@ -1,0 +1,12 @@
+.deps/
+
+__pycache__/
+*.pyc
+*.pyo
+
+generate_assets.py
+temp_find_video.py
+
+.DS_Store
+Thumbs.db
+.env
