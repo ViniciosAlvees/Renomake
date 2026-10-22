@@ -200,8 +200,8 @@ function App() {
               <p className="eyebrow">Beleza, cuidado e elegância em um só lugar.</p>
               <h1>RENOMAKE</h1>
               <p className="hero-text">
-                Descubra cosméticos premium, hidratação e sofisticação para realçar sua rotina de beleza com
-                leveza e confiança.
+                Produtos de qualidade da Reno para você, deixe sua rotina de autocuidado leve e sofisticada.
+                 Renove com a Reno, pois nossa prioridade é você.
               </p>
               <div className="hero-actions">
                 <a href="#produtos" className="btn btn-primary">VER PRODUTOS</a>
