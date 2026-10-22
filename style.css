@@ -1,12 +1,15 @@
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "./src";
+
 :root {
-  --bg: #f7f5f2;
-  --bg-soft: #f3efe9;
-  --panel: #ffffff;
+  --bg: #f8f0e49c;
+  --bg-soft: #f8f0e49c;
+  --panel: #f5f2e6d2;
   --panel-alt: #fbf9f5;
   --text: #111111;
   --muted: #666666;
-  --gold: #c59d59;
-  --gold-strong: #b4833d;
+  --gold: #b4a488;
+  --gold-strong: #ae7e3c;
   --gold-soft: rgba(197, 157, 89, 0.14);
   --line: rgba(17, 17, 17, 0.08);
   --shadow: 0 22px 45px rgba(17, 17, 17, 0.08);
@@ -522,6 +525,29 @@ button {
   transition: transform 0.35s ease;
 }
 
+.product-image-placeholder {
+  width: 100%;
+  height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--gold-strong);
+  background:
+    radial-gradient(circle at 50% 44%, rgba(197, 157, 89, 0.13), transparent 42%),
+    linear-gradient(145deg, #fbf9f5, #f1e9dc);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.placeholder-sparkle {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 4rem;
+  line-height: 1;
+}
+
 .product-card:hover .product-image,
 .product-card:focus-within .product-image {
   transform: scale(1.04);
@@ -546,6 +572,7 @@ button {
   font-size: 1.05rem;
   line-height: 1.5;
   min-height: 72px;
+  overflow-wrap: anywhere;
 }
 
 .product-price {
@@ -712,6 +739,23 @@ button {
   height: 72px;
   object-fit: cover;
   border-radius: 14px;
+}
+
+.cart-image-placeholder {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--gold-strong);
+  background: linear-gradient(145deg, #fbf9f5, #f1e9dc);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 2.2rem;
+}
+
+.no-products {
+  grid-column: 1 / -1;
+  min-height: 250px;
 }
 
 .cart-item-info {
@@ -935,6 +979,10 @@ button {
   }
 
   .product-image {
+    height: 180px;
+  }
+
+  .product-image-placeholder {
     height: 180px;
   }
 
