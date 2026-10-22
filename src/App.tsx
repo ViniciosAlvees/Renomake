@@ -26,23 +26,13 @@ function normalizeText(value: string): string {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
-function StoreIcon({ type }: { type: "shopee" | "mercado-livre" | "whatsapp" }) {
+function StoreIcon({ type }: { type: "shopee" | "whatsapp" }) {
   if (type === "shopee") {
     return (
       <svg className="store-icon" viewBox="0 0 48 48" aria-hidden="true">
         <path d="M12 17h24l2.5 25h-29L12 17Z" fill="currentColor" />
         <path d="M17 18v-4a7 7 0 0 1 14 0v4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
         <path d="M30.6 24.1c-1.1-1.2-2.7-1.8-4.6-1.8-2.8 0-4.7 1.4-4.7 3.5 0 2.2 1.9 2.9 4.3 3.5 1.9.5 2.8.8 2.8 1.6 0 .8-.8 1.3-2.1 1.3-1.6 0-3-.6-4.1-1.8l-1.8 2.1c1.4 1.6 3.5 2.4 5.9 2.4 3.2 0 5.1-1.6 5.1-3.9 0-2.2-1.8-3-4.4-3.7-1.8-.5-2.7-.7-2.7-1.5 0-.7.7-1.1 1.8-1.1 1.4 0 2.5.5 3.5 1.4l1.1-2Z" fill="#ee4d2d" />
-      </svg>
-    );
-  }
-
-  if (type === "mercado-livre") {
-    return (
-      <svg className="store-icon" viewBox="0 0 48 48" aria-hidden="true">
-        <ellipse cx="24" cy="24" rx="22" ry="15" fill="none" stroke="currentColor" strokeWidth="4" />
-        <path d="m9 24 8-5c1.7-1 3.6-.5 5 1l2 2 2-2c1.4-1.5 3.3-2 5-1l8 5-5 6-6-3-4 4-4-4-6 3-5-6Z" fill="currentColor" />
-        <path d="m17 19 7 6 7-6M19 27l5 4 5-4" fill="none" stroke="#ffe600" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   }
@@ -162,9 +152,9 @@ function App() {
 
           <nav className="main-nav" aria-label="Menu principal">
             <a href="#inicio">Início</a>
-            <a href="#produtos">Produtos</a>
+            <a href="#produtos">Makes</a>
             <a href="#produtos">Cosméticos</a>
-            <a href="#ofertas">Ofertas</a>
+            <a href="#ofertas">Kits</a>
             <a href="#contato">Contato</a>
           </nav>
 
@@ -326,19 +316,6 @@ function App() {
               <a className="store-card store-shopee" href={shopeeUrl} target="_blank" rel="noreferrer">
                 <StoreIcon type="shopee" />
                 <span>Shopee</span>
-                <small>Visite nossa loja</small>
-              </a>
-              <a
-                className="store-card store-mercadolivre unavailable"
-                href="#ofertas"
-                aria-disabled="true"
-                onClick={(event) => {
-                  event.preventDefault();
-                  showToast("Este link ainda não foi configurado.");
-                }}
-              >
-                <StoreIcon type="mercado-livre" />
-                <span>Mercado Livre</span>
                 <small>Visite nossa loja</small>
               </a>
               <a className="store-card store-whatsapp" href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noreferrer">
