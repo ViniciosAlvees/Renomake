@@ -7,6 +7,12 @@ const shopeeUrl = "https://br.shp.ee/LuFR9yis";
 const categories: ProductCategory[] = ["Maquiagem", "Cuidados faciais", "Cuidados corporais"];
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
+function getCatalogLayout(width: number) {
+  if (width >= 1024) return { columns: 4, padding: "12px", imageHeight: "160px" };
+  if (width >= 640) return { columns: 3, padding: "12px", imageHeight: "160px" };
+  return { columns: 2, padding: "8px", imageHeight: "128px" };
+}
+
 type CartItem = {
   product: Product;
   quantity: number;
@@ -54,6 +60,7 @@ function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [toast, setToast] = useState("");
+  const [catalogLayout, setCatalogLayout] = useState(() => getCatalogLayout(window.innerWidth));
 
   const visibleProducts = useMemo(() => {
     const term = normalizeText(searchTerm.trim());
@@ -79,6 +86,15 @@ function App() {
     }
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
+  }, []);
+
+  useEffect(() => {
+    function updateCatalogLayout() {
+      setCatalogLayout(getCatalogLayout(window.innerWidth));
+    }
+
+    window.addEventListener("resize", updateCatalogLayout);
+    return () => window.removeEventListener("resize", updateCatalogLayout);
   }, []);
 
   function showToast(message: string) {
@@ -237,30 +253,58 @@ function App() {
               ))}
             </div>
 
-            <div className="product-grid" aria-live="polite">
+            <div
+              className="product-grid"
+              style={{
+                gridTemplateColumns: `repeat(${catalogLayout.columns}, minmax(0, 1fr))`,
+                gap: "12px"
+              }}
+              aria-live="polite"
+            >
               {visibleProducts.length === 0 ? (
                 <div className="empty-cart no-products">Nenhum produto encontrado.</div>
               ) : (
                 visibleProducts.map((product) => (
-                  <article className="product-card reveal-up" key={product.id} aria-label={product.name}>
+                  <article
+                    className="product-card reveal-up"
+                    style={{ minWidth: 0, gap: "12px", padding: catalogLayout.padding }}
+                    key={product.id}
+                    aria-label={product.name}
+                  >
                     <div
                       className="product-image-wrap"
                       role="img"
                       aria-label={`Imagem indisponível para ${product.name}`}
                     >
-                      <div className="product-image-placeholder">
+                      <div
+                        className="product-image-placeholder"
+                        style={{ height: catalogLayout.imageHeight }}
+                      >
                         <span className="placeholder-sparkle" aria-hidden="true">✧</span>
                         <span>Imagem indisponível</span>
                       </div>
                     </div>
-                    <div className="product-info">
+                    <div className="product-info" style={{ gap: "8px" }}>
                       {product.brand && <span className="product-brand">{product.brand}</span>}
-                      <h3 className="product-name">{product.name}</h3>
-                      <strong className="product-price">{formatPrice(product.priceCents)}</strong>
+                      <h3
+                        className="product-name"
+                        style={{ minHeight: 0, fontSize: "0.9rem", lineHeight: 1.4 }}
+                      >
+                        {product.name}
+                      </h3>
+                      <strong className="product-price" style={{ fontSize: "1rem" }}>
+                        {formatPrice(product.priceCents)}
+                      </strong>
                     </div>
                     <button
                       type="button"
                       className="btn btn-primary add-to-cart"
+                      style={{
+                        minHeight: "40px",
+                        padding: "8px",
+                        fontSize: "0.75rem",
+                        letterSpacing: "normal"
+                      }}
                       onClick={() => addToCart(product)}
                     >
                       Adicionar ao carrinho
