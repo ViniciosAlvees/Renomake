@@ -7,12 +7,6 @@ const shopeeUrl = "https://br.shp.ee/LuFR9yis";
 const categories: ProductCategory[] = ["Maquiagem", "Cuidados faciais", "Cuidados corporais"];
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-function getCatalogLayout(width: number) {
-  if (width >= 1024) return { columns: 4, padding: "12px", imageHeight: "160px" };
-  if (width >= 640) return { columns: 3, padding: "12px", imageHeight: "160px" };
-  return { columns: 2, padding: "8px", imageHeight: "128px" };
-}
-
 type CartItem = {
   product: Product;
   quantity: number;
@@ -60,7 +54,6 @@ function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [toast, setToast] = useState("");
-  const [catalogLayout, setCatalogLayout] = useState(() => getCatalogLayout(window.innerWidth));
 
   const visibleProducts = useMemo(() => {
     const term = normalizeText(searchTerm.trim());
@@ -86,15 +79,6 @@ function App() {
     }
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
-  }, []);
-
-  useEffect(() => {
-    function updateCatalogLayout() {
-      setCatalogLayout(getCatalogLayout(window.innerWidth));
-    }
-
-    window.addEventListener("resize", updateCatalogLayout);
-    return () => window.removeEventListener("resize", updateCatalogLayout);
   }, []);
 
   function showToast(message: string) {
@@ -163,8 +147,7 @@ function App() {
           <nav className="main-nav" aria-label="Menu principal">
             <a href="#inicio">Início</a>
             <a href="#produtos">Produtos</a>
-            <a href="#produtos">Cosméticos</a>
-            <a href="#ofertas">Ofertas</a>
+            <a href="#ofertas">Lojas</a>
             <a href="#contato">Contato</a>
           </nav>
 
@@ -185,7 +168,11 @@ function App() {
               aria-expanded={cartOpen}
               onClick={() => setCartOpen(true)}
             >
-              <span aria-hidden="true">🛒</span>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+                <path d="M3 4h2l2.1 10.1a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 1.9-1.4L20 8H6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="9.5" cy="19" r="1" fill="currentColor" />
+                <circle cx="17" cy="19" r="1" fill="currentColor" />
+              </svg>
               <span className="sr-only">Itens no carrinho</span>
               <span className="cart-badge">{cartCount}</span>
             </button>
@@ -196,23 +183,22 @@ function App() {
       <main>
         <section className="hero" id="inicio">
           <div className="container hero-inner">
-            <div className="hero-copy reveal-up">
-              <p className="eyebrow">Beleza, cuidado e elegância em um só lugar.</p>
+            <div className="hero-copy">
+              <p className="eyebrow">Beleza, cuidado e elegância em um só lugar</p>
               <h1>RENOMAKE</h1>
               <p className="hero-text">
-                Produtos de qualidade da Reno para você, deixe sua rotina de autocuidado leve e sofisticada.
-                 Renove com a Reno, pois nossa prioridade é você.
+                Encontre seus essenciais de maquiagem e autocuidado. Uma seleção feita para acompanhar você, do primeiro cuidado ao toque final.
               </p>
               <div className="hero-actions">
-                <a href="#produtos" className="btn btn-primary">VER PRODUTOS</a>
+                <a href="#produtos" className="btn btn-primary">Explorar produtos</a>
               </div>
             </div>
-            <div className="hero-visual reveal-up" aria-hidden="true">
-              <div className="hero-shape hero-shape-one" />
-              <div className="hero-shape hero-shape-two" />
-              <div className="hero-card">
-                <span>Premium</span>
-                <strong>Beauty</strong>
+            <div className="hero-visual" aria-hidden="true">
+              <div className="hero-orbit hero-orbit-one" />
+              <div className="hero-orbit hero-orbit-two" />
+              <div className="hero-still-life">
+                <span className="hero-still-life-mark">R</span>
+                <span className="hero-still-life-caption">Seu ritual, do seu jeito</span>
               </div>
             </div>
           </div>
@@ -220,45 +206,43 @@ function App() {
 
         <section className="catalog" id="produtos">
           <div className="container">
-            <div className="catalog-top reveal-up">
+            <div className="catalog-top">
               <div>
-                <p className="section-tag">Catálogo</p>
-                <h2>Produtos em destaque</h2>
+                <p className="section-tag">Escolhas para você</p>
+                <h2>Encontre seu próximo essencial</h2>
               </div>
               <div className="catalog-counter">
                 <span>{visibleProducts.length}</span>
-                <span>itens</span>
+                <span>{visibleProducts.length === 1 ? "produto" : "produtos"}</span>
               </div>
             </div>
 
-            <div className="filter-bar reveal-up" aria-label="Filtrar produtos">
-              <button
-                type="button"
-                className={`filter-btn${activeCategory === "all" ? " active" : ""}`}
-                aria-pressed={activeCategory === "all"}
-                onClick={() => setActiveCategory("all")}
-              >
-                Todos
-              </button>
-              {categories.map((category) => (
+            <div className="catalog-controls">
+              <div className="filter-bar" role="group" aria-label="Filtrar produtos">
                 <button
-                  key={category}
                   type="button"
-                  className={`filter-btn${activeCategory === category ? " active" : ""}`}
-                  aria-pressed={activeCategory === category}
-                  onClick={() => setActiveCategory(category)}
+                  className={`filter-btn${activeCategory === "all" ? " active" : ""}`}
+                  aria-pressed={activeCategory === "all"}
+                  onClick={() => setActiveCategory("all")}
                 >
-                  {category}
+                  Todos
                 </button>
-              ))}
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    className={`filter-btn${activeCategory === category ? " active" : ""}`}
+                    aria-pressed={activeCategory === category}
+                    onClick={() => setActiveCategory(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div
               className="product-grid"
-              style={{
-                gridTemplateColumns: `repeat(${catalogLayout.columns}, minmax(0, 1fr))`,
-                gap: "12px"
-              }}
               aria-live="polite"
             >
               {visibleProducts.length === 0 ? (
@@ -266,45 +250,30 @@ function App() {
               ) : (
                 visibleProducts.map((product) => (
                   <article
-                    className="product-card reveal-up"
-                    style={{ minWidth: 0, gap: "12px", padding: catalogLayout.padding }}
+                    className="product-card"
                     key={product.id}
                     aria-label={product.name}
                   >
                     <div
-                      className="product-image-wrap"
+                      className={`product-image-wrap product-art-${product.category === "Cuidados faciais" ? "facial" : product.category === "Cuidados corporais" ? "corporal" : "makeup"}`}
                       role="img"
-                      aria-label={`Imagem indisponível para ${product.name}`}
+                      aria-label={`Foto de ${product.name} em breve`}
                     >
-                      <div
-                        className="product-image-placeholder"
-                        style={{ height: catalogLayout.imageHeight }}
-                      >
-                        <span className="placeholder-sparkle" aria-hidden="true">✧</span>
-                        <span>Imagem indisponível</span>
-                      </div>
+                      <span className="product-art-monogram" aria-hidden="true">R</span>
+                      <span className="product-art-caption">Foto em breve</span>
                     </div>
-                    <div className="product-info" style={{ gap: "8px" }}>
+                    <div className="product-info">
                       {product.brand && <span className="product-brand">{product.brand}</span>}
-                      <h3
-                        className="product-name"
-                        style={{ minHeight: 0, fontSize: "0.9rem", lineHeight: 1.4 }}
-                      >
+                      <h3 className="product-name">
                         {product.name}
                       </h3>
-                      <strong className="product-price" style={{ fontSize: "1rem" }}>
+                      <strong className="product-price">
                         {formatPrice(product.priceCents)}
                       </strong>
                     </div>
                     <button
                       type="button"
                       className="btn btn-primary add-to-cart"
-                      style={{
-                        minHeight: "40px",
-                        padding: "8px",
-                        fontSize: "0.75rem",
-                        letterSpacing: "normal"
-                      }}
                       onClick={() => addToCart(product)}
                     >
                       Adicionar ao carrinho
@@ -317,7 +286,7 @@ function App() {
         </section>
 
         <section className="stores" id="ofertas">
-          <div className="container stores-inner reveal-up">
+          <div className="container stores-inner">
             <div className="section-heading stores-heading">
               <p className="section-tag">Loja</p>
               <h2>Onde nos encontrar</h2>
@@ -361,10 +330,24 @@ function App() {
         </div>
       </footer>
 
-      <aside className={`cart-panel${cartOpen ? " open" : ""}`} aria-hidden={!cartOpen}>
+      {cartOpen && (
+        <button
+          className="cart-scrim"
+          type="button"
+          aria-label="Fechar carrinho"
+          onClick={() => setCartOpen(false)}
+        />
+      )}
+      <aside
+        className={`cart-panel${cartOpen ? " open" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Carrinho de compras"
+        aria-hidden={!cartOpen}
+      >
         <div className="cart-header">
           <h3>Carrinho</h3>
-          <button type="button" aria-label="Fechar carrinho" onClick={() => setCartOpen(false)}>×</button>
+          <button className="cart-close" type="button" aria-label="Fechar carrinho" onClick={() => setCartOpen(false)}>×</button>
         </div>
         <div className="cart-items" aria-live="polite">
           {cart.length === 0 ? (
