@@ -26,3 +26,7 @@ npm run build
 ```
 
 Os 55 produtos e seus preços em centavos estão em `src/products.ts`. Imagens específicas dos itens não foram fornecidas; o catálogo exibe um estado visual de imagem indisponível e mantém a logo existente.
+
+## Publicação no GitHub Pages
+
+O workflow `.github/workflows/deploy.yml` compila e publica o conteúdo de `dist` no GitHub Pages ao atualizar `main` ou `Vinicios`. Em **Settings → Pages**, selecione **GitHub Actions** como fonte de publicação. O Vite está configurado para o caminho do projeto `https://viniciosalvees.github.io/Renomake/`.
