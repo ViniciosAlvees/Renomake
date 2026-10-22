@@ -1,4 +1,7 @@
 .deps/
+node_modules/
+dist/
+*.tsbuildinfo
 
 __pycache__/
 *.pyc
