@@ -1,12 +1,12 @@
 :root {
-  --bg: #f7f5f2;
-  --bg-soft: #f3efe9;
-  --panel: #ffffff;
+  --bg: #f8f0e49c;
+  --bg-soft: #f8f0e49c;
+  --panel: #f5f2e6d2;
   --panel-alt: #fbf9f5;
   --text: #111111;
   --muted: #666666;
-  --gold: #c59d59;
-  --gold-strong: #b4833d;
+  --gold: #b4a488;
+  --gold-strong: #ae7e3c;
   --gold-soft: rgba(197, 157, 89, 0.14);
   --line: rgba(17, 17, 17, 0.08);
   --shadow: 0 22px 45px rgba(17, 17, 17, 0.08);
