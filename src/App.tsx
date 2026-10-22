@@ -15,6 +15,7 @@ function getCatalogLayout(width: number) {
 
 type CartItem = {
   product: Product;
+  color: string;
   quantity: number;
 };
 
@@ -24,6 +25,28 @@ function formatPrice(priceCents: number): string {
 
 function normalizeText(value: string): string {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function getProductColors(product: Product): string[] {
+  const name = normalizeText(product.name);
+  if (name.includes("lapis de olho preto")) return ["Preto"];
+  if (name.includes("lapis de olho marrom")) return ["Marrom"];
+  if (product.category !== "Maquiagem") return ["Única"];
+  if (/\b(batom|labial|lip|tint)\b/.test(name)) return ["Nude", "Rosa", "Vermelho", "Marrom"];
+  if (/\b(blush|contorno|po compacto|po banana|po translucido)\b/.test(name)) {
+    return ["Claro", "Médio", "Escuro"];
+  }
+  return ["Única"];
+}
+
+function getProductDescription(product: Product): string {
+  if (product.category === "Maquiagem") {
+    return "Um item para completar sua rotina de maquiagem. A disponibilidade de cores e tonalidades será confirmada pela nossa equipe.";
+  }
+  if (product.category === "Cuidados faciais") {
+    return "Um item para sua rotina de cuidados faciais. Consulte as orientações de uso na embalagem do produto.";
+  }
+  return "Um item para sua rotina de cuidados corporais. Consulte as orientações de uso na embalagem do produto.";
 }
 
 function StoreIcon({ type }: { type: "shopee" | "whatsapp" }) {
@@ -50,7 +73,14 @@ function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [toast, setToast] = useState("");
+  const [selectedProductId, setSelectedProductId] = useState(() => {
+    const match = window.location.hash.match(/^#produto\/(.+)$/);
+    return match && products.some((product) => product.id === match[1]) ? match[1] : null;
+  });
+  const [selectedColor, setSelectedColor] = useState("");
+  const [detailQuantity, setDetailQuantity] = useState(1);
   const [catalogLayout, setCatalogLayout] = useState(() => getCatalogLayout(window.innerWidth));
+  const selectedProduct = products.find((product) => product.id === selectedProductId) ?? null;
 
   const visibleProducts = useMemo(() => {
     const term = normalizeText(searchTerm.trim());
@@ -79,6 +109,25 @@ function App() {
   }, []);
 
   useEffect(() => {
+    function updateSelectedProduct() {
+      const match = window.location.hash.match(/^#produto\/(.+)$/);
+      setSelectedProductId(
+        match && products.some((product) => product.id === match[1]) ? match[1] : null
+      );
+    }
+
+    window.addEventListener("hashchange", updateSelectedProduct);
+    return () => window.removeEventListener("hashchange", updateSelectedProduct);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+    setSelectedColor(getProductColors(selectedProduct)[0]);
+    setDetailQuantity(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [selectedProductId]);
+
+  useEffect(() => {
     function updateCatalogLayout() {
       setCatalogLayout(getCatalogLayout(window.innerWidth));
     }
@@ -91,31 +140,49 @@ function App() {
     setToast(message);
   }
 
-  function addToCart(product: Product) {
-    setCart((currentCart) => {
-      const existingItem = currentCart.find((item) => item.product.id === product.id);
-      if (existingItem) {
-        return currentCart.map((item) =>
-          item.product.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...currentCart, { product, quantity: 1 }];
-    });
-    showToast(`${product.name} foi adicionado ao carrinho.`);
+  function openProduct(product: Product) {
+    window.location.hash = `produto/${product.id}`;
   }
 
-  function changeQuantity(productId: string, change: number) {
+  function returnToCatalog() {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#produtos`);
+    setSelectedProductId(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function addToCart(product: Product, color: string, quantity: number) {
+    setCart((currentCart) => {
+      const existingItem = currentCart.find(
+        (item) => item.product.id === product.id && item.color === color
+      );
+      if (existingItem) {
+        return currentCart.map((item) =>
+          item.product.id === product.id && item.color === color
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
+      }
+      return [...currentCart, { product, color, quantity }];
+    });
+    showToast(`${product.name} (${color}) foi adicionado ao carrinho.`);
+  }
+
+  function changeQuantity(productId: string, color: string, change: number) {
     setCart((currentCart) =>
       currentCart
         .map((item) =>
-          item.product.id === productId ? { ...item, quantity: item.quantity + change } : item
+          item.product.id === productId && item.color === color
+            ? { ...item, quantity: item.quantity + change }
+            : item
         )
         .filter((item) => item.quantity > 0)
     );
   }
 
-  function removeFromCart(productId: string) {
-    setCart((currentCart) => currentCart.filter((item) => item.product.id !== productId));
+  function removeFromCart(productId: string, color: string) {
+    setCart((currentCart) =>
+      currentCart.filter((item) => item.product.id !== productId || item.color !== color)
+    );
   }
 
   function checkout() {
@@ -125,8 +192,8 @@ function App() {
     }
 
     const lines = cart.map(
-      ({ product, quantity }) =>
-        `- ${product.name} — ${quantity}x — ${formatPrice(product.priceCents * quantity)}`
+      ({ product, color, quantity }) =>
+        `- Modelo: ${product.name} | Cor/variação: ${color} | Quantidade: ${quantity} | Subtotal: ${formatPrice(product.priceCents * quantity)}`
     );
     const message = [
       "Olá! Gostaria de realizar um pedido na Renomake.",
@@ -184,6 +251,79 @@ function App() {
       </header>
 
       <main>
+        {selectedProduct ? (
+          <section className="product-detail container" aria-labelledby="detail-title">
+            <button type="button" className="detail-back" onClick={returnToCatalog}>
+              <span aria-hidden="true">←</span> Voltar aos produtos
+            </button>
+            <div className="detail-layout">
+              <div className="detail-image product-image-placeholder" role="img" aria-label={`Imagem indisponível para ${selectedProduct.name}`}>
+                <span className="placeholder-sparkle" aria-hidden="true">✧</span>
+                <span>Imagem indisponível</span>
+              </div>
+              <div className="detail-content">
+                <p className="product-brand">{selectedProduct.brand ?? "Renomake"}</p>
+                <p className="detail-category">{selectedProduct.category}</p>
+                <h1 id="detail-title">{selectedProduct.name}</h1>
+                <p className="detail-description">{getProductDescription(selectedProduct)}</p>
+                <strong className="detail-price">{formatPrice(selectedProduct.priceCents)}</strong>
+
+                <div className="detail-options">
+                  <span className="detail-option-label">Cor ou variação</span>
+                  <div className="color-options" aria-label="Escolha a cor ou variação">
+                    {getProductColors(selectedProduct).map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={`color-option${selectedColor === color ? " selected" : ""}`}
+                        aria-pressed={selectedColor === color}
+                        onClick={() => setSelectedColor(color)}
+                      >
+                        {color}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="detail-quantity">
+                  <span>Quantidade</span>
+                  <div className="qty-buttons" aria-label="Quantidade do produto">
+                    <button
+                      type="button"
+                      aria-label="Diminuir quantidade"
+                      onClick={() => setDetailQuantity((quantity) => Math.max(1, quantity - 1))}
+                    >
+                      −
+                    </button>
+                    <span className="qty-value" aria-live="polite">{detailQuantity}</span>
+                    <button
+                      type="button"
+                      aria-label="Aumentar quantidade"
+                      onClick={() => setDetailQuantity((quantity) => quantity + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="btn btn-primary detail-add"
+                  onClick={() => {
+                    if (!selectedColor.trim()) {
+                      showToast("Informe a cor ou variação desejada.");
+                      return;
+                    }
+                    addToCart(selectedProduct, selectedColor.trim(), detailQuantity);
+                  }}
+                >
+                  Adicionar ao carrinho
+                </button>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <>
         <section className="hero" id="inicio">
           <div className="container hero-inner">
             <div className="hero-copy reveal-up">
@@ -261,31 +401,31 @@ function App() {
                     key={product.id}
                     aria-label={product.name}
                   >
-                    <div
-                      className="product-image-wrap"
-                      role="img"
-                      aria-label={`Imagem indisponível para ${product.name}`}
+                    <button
+                      type="button"
+                      className="product-card-open"
+                      onClick={() => openProduct(product)}
+                      aria-label={`Ver detalhes de ${product.name}`}
                     >
-                      <div
-                        className="product-image-placeholder"
-                        style={{ height: catalogLayout.imageHeight }}
-                      >
-                        <span className="placeholder-sparkle" aria-hidden="true">✧</span>
-                        <span>Imagem indisponível</span>
+                      <div className="product-image-wrap" aria-hidden="true">
+                        <div
+                          className="product-image-placeholder"
+                          style={{ height: catalogLayout.imageHeight }}
+                        >
+                          <span className="placeholder-sparkle" aria-hidden="true">✧</span>
+                          <span>Imagem indisponível</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="product-info" style={{ gap: "8px" }}>
-                      {product.brand && <span className="product-brand">{product.brand}</span>}
-                      <h3
-                        className="product-name"
-                        style={{ minHeight: 0, fontSize: "0.9rem", lineHeight: 1.4 }}
-                      >
-                        {product.name}
-                      </h3>
-                      <strong className="product-price" style={{ fontSize: "1rem" }}>
-                        {formatPrice(product.priceCents)}
-                      </strong>
-                    </div>
+                      <div className="product-info" style={{ gap: "8px" }}>
+                        {product.brand && <span className="product-brand">{product.brand}</span>}
+                        <span className="product-name" style={{ minHeight: 0, fontSize: "0.9rem", lineHeight: 1.4 }}>
+                          {product.name}
+                        </span>
+                        <strong className="product-price" style={{ fontSize: "1rem" }}>
+                          {formatPrice(product.priceCents)}
+                        </strong>
+                      </div>
+                    </button>
                     <button
                       type="button"
                       className="btn btn-primary add-to-cart"
@@ -295,9 +435,9 @@ function App() {
                         fontSize: "0.75rem",
                         letterSpacing: "normal"
                       }}
-                      onClick={() => addToCart(product)}
+                      onClick={() => openProduct(product)}
                     >
-                      Adicionar ao carrinho
+                      Escolher cor e quantidade
                     </button>
                   </article>
                 ))
@@ -326,6 +466,8 @@ function App() {
             </div>
           </div>
         </section>
+          </>
+        )}
       </main>
 
       <footer className="site-footer" id="contato">
@@ -347,18 +489,19 @@ function App() {
           {cart.length === 0 ? (
             <div className="empty-cart">Seu carrinho está vazio.</div>
           ) : (
-            cart.map(({ product, quantity }) => (
-              <div className="cart-item" key={product.id}>
+            cart.map(({ product, color, quantity }) => (
+              <div className="cart-item" key={`${product.id}-${normalizeText(color)}`}>
                 <div className="cart-image-placeholder" aria-hidden="true">✧</div>
                 <div className="cart-item-info">
                   <strong>{product.name}</strong>
+                  <span>Cor/variação: {color}</span>
                   <span>{formatPrice(product.priceCents)} cada</span>
                   <div className="cart-controls">
                     <div className="qty-buttons" aria-label={`Quantidade de ${product.name}`}>
                       <button
                         type="button"
                         aria-label="Diminuir quantidade"
-                        onClick={() => changeQuantity(product.id, -1)}
+                        onClick={() => changeQuantity(product.id, color, -1)}
                       >
                         −
                       </button>
@@ -366,7 +509,7 @@ function App() {
                       <button
                         type="button"
                         aria-label="Aumentar quantidade"
-                        onClick={() => changeQuantity(product.id, 1)}
+                        onClick={() => changeQuantity(product.id, color, 1)}
                       >
                         +
                       </button>
@@ -374,7 +517,7 @@ function App() {
                     <button
                       type="button"
                       className="remove-item"
-                      onClick={() => removeFromCart(product.id)}
+                      onClick={() => removeFromCart(product.id, color)}
                     >
                       Remover
                     </button>
