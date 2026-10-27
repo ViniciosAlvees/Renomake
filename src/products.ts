@@ -6,6 +6,8 @@ export interface Product {
   priceCents: number;
   category: ProductCategory;
   brand?: string;
+  image?: string;
+  stock?: number;
 }
 
 export const products: Product[] = [

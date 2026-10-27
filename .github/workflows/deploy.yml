@@ -37,6 +37,14 @@ jobs:
           npm run typecheck
           npm test
 
+      - name: Verify backend URL configuration
+        run: |
+          api_url="$(sed -n 's/^VITE_API_URL=//p' .env.production)"
+          if [[ "$api_url" != https://* ]]; then
+            echo "::error::VITE_API_URL must be the HTTPS base URL of the published backend."
+            exit 1
+          fi
+
       - name: Build site
         run: npm run build
 
