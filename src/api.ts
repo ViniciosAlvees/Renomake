@@ -1,7 +1,9 @@
 import type { Product, ProductCategory } from "./products";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
-const apiBaseUrl = (configuredApiUrl || (import.meta.env.DEV ? "http://localhost:8080" : "")).replace(/\/+$/, "");
+const apiBaseUrl = (
+  configuredApiUrl || (import.meta.env.DEV ? "https://renomake-beckend.onrender.com" : "")
+).replace(/\/+$/, "");
 
 export class ApiError extends Error {
   constructor(

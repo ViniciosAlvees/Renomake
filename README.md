@@ -12,9 +12,9 @@ Requer Node.js 20.19+ ou 22.12+.
    npm install
    ```
 
-   O arquivo `.env.development` já configura `VITE_API_URL=http://localhost:8080`. Para outra instalação, copie `.env.example` para `.env` e ajuste a URL da API.
+   O arquivo `.env.development` já configura `VITE_API_URL=https://renomake-beckend.onrender.com`, portanto não é necessário iniciar outro backend para abrir o frontend. Para usar um backend Java local, defina `VITE_API_URL=http://localhost:8080` no terminal antes de iniciar o Vite (no PowerShell: `$env:VITE_API_URL = "http://localhost:8080"`).
 
-2. Configure as variáveis do backend conforme o README do repositório Java, iniciando a API na porta 8080.
+2. Opcional: se quiser testar com o backend Java local em vez do Render, configure suas variáveis Oracle/Mercado Pago conforme o README do repositório Java e inicie a API na porta 8080.
 
 3. Execute a loja:
 
@@ -22,7 +22,7 @@ Requer Node.js 20.19+ ou 22.12+.
    npm run dev
    ```
 
-O catálogo é carregado por `GET /api/produtos`. `VITE_API_URL` deve conter somente a origem do backend, sem `/api/produtos`: em desenvolvimento, `http://localhost:8080`; em produção, `https://renomake-beckend.onrender.com`. O arquivo `.env.production` fornece a URL de produção para o build do GitHub Pages. Se a API não responder, a página mostra erro em vez de exibir preços estáticos como se fossem atuais. Os preços e o estoque apresentados vêm do banco e o backend recalcula o total do pedido.
+O catálogo é carregado por `GET /api/produtos`. `VITE_API_URL` deve conter somente a origem do backend, sem `/api/produtos`: por padrão, tanto no desenvolvimento quanto em produção, `https://renomake-beckend.onrender.com`. O arquivo `.env.production` fornece a URL para o build do GitHub Pages. O serviço gratuito do Render pode demorar cerca de um minuto para responder à primeira solicitação após um período sem uso; as solicitações seguintes devem ser mais rápidas. Se a API não responder, a página mostra erro em vez de exibir preços estáticos como se fossem atuais. Os preços e o estoque apresentados vêm do banco e o backend recalcula o total do pedido.
 
 **Atenção ao estoque:** os arquivos SQL fornecidos (`sql.renomake`) mostram os 55 produtos com `QUANTIDADE_ESTOQUE = 0` (o script de carga também cria produtos com estoque zero). O frontend respeita esse valor e desabilita a compra; atualize o estoque no Oracle com quantidades reais antes de testar pedidos.
 
