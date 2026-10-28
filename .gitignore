@@ -13,3 +13,4 @@ temp_find_video.py
 .DS_Store
 Thumbs.db
 .env
+.env.*.local

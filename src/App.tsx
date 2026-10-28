@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import logo from "../assets/images/logo.png";
 import { apiRequest, getProductImageUrl, mapApiProducts } from "./api";
+import MercadoPagoPaymentBrick, { hasMercadoPagoPublicKey } from "./MercadoPagoPaymentBrick";
 import type { Product, ProductCategory } from "./products";
+import type { IPaymentFormData } from "@mercadopago/sdk-react/esm/bricks/payment/type";
 
 const whatsappNumber = "5518996115273";
 const shopeeUrl = "https://br.shp.ee/LuFR9yis";
@@ -46,12 +48,25 @@ type CheckoutForm = {
   rua: string;
   number: string;
   complement: string;
-  paymentMethod: string;
   password: string;
 };
 
-type CheckoutStep = "cart" | "form" | "processing" | "result";
+type CheckoutStep = "cart" | "form" | "processing" | "payment" | "result";
 type AccountMode = "register" | "login";
+
+type PaymentOrder = {
+  idPedido: number;
+  valorTotal: number;
+};
+
+type PaymentResult = {
+  idPagamento: string;
+  status: string;
+  statusDetail: string;
+  paymentMethod: string;
+  qrCode?: string;
+  qrCodeBase64?: string;
+};
 
 type OrderResult = {
   pedido: {
@@ -78,7 +93,6 @@ const defaultCheckoutForm: CheckoutForm = {
   rua: "",
   number: "",
   complement: "",
-  paymentMethod: "Mercado Pago",
   password: ""
 };
 
@@ -153,6 +167,8 @@ function App() {
   const [checkoutErrors, setCheckoutErrors] = useState<Partial<Record<keyof CheckoutForm, string>>>({});
   const [checkoutError, setCheckoutError] = useState("");
   const [orderResult, setOrderResult] = useState<OrderResult | null>(null);
+  const [paymentOrder, setPaymentOrder] = useState<PaymentOrder | null>(null);
+  const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
   const [submittingCheckout, setSubmittingCheckout] = useState(false);
   const selectedProduct = catalogProducts.find((product) => product.id === selectedProductId) ?? null;
 
@@ -213,11 +229,12 @@ function App() {
   const cartTotalCents = cart.reduce((total, item) => total + item.product.priceCents * item.quantity, 0);
 
   async function refreshOrderStatus() {
-    if (!orderResult) return;
+    const idPedido = orderResult?.pedido.idPedido ?? paymentOrder?.idPedido;
+    if (!idPedido) return;
     setSubmittingCheckout(true);
     setCheckoutError("");
     try {
-      const updatedOrder = await apiRequest<OrderResult>(`/api/pedidos/${orderResult.pedido.idPedido}`);
+      const updatedOrder = await apiRequest<OrderResult>(`/api/pedidos/${idPedido}`);
       setOrderResult(updatedOrder);
     } catch (error) {
       setCheckoutError(error instanceof Error ? error.message : "Não foi possível atualizar o pedido.");
@@ -359,14 +376,17 @@ function App() {
     if (!checkoutForm.bairro.trim()) nextErrors.bairro = "Informe o bairro.";
     if (!checkoutForm.rua.trim()) nextErrors.rua = "Informe a rua.";
     if (!checkoutForm.number.trim()) nextErrors.number = "Informe o número.";
-    if (!checkoutForm.paymentMethod.trim()) nextErrors.paymentMethod = "Selecione o método de pagamento.";
-
     setCheckoutErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   }
 
   async function submitCheckout(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!hasMercadoPagoPublicKey) {
+      setCheckoutError("O pagamento está indisponível: configure VITE_MP_PUBLIC_KEY antes de iniciar um pedido.");
+      return;
+    }
 
     if (!validateCheckoutForm()) {
       showToast("Revise os dados antes de continuar.");
@@ -378,6 +398,13 @@ function App() {
     setCheckoutStep("processing");
 
     try {
+      const paymentAvailability = await apiRequest<{ disponivel: boolean }>(
+        "/api/checkout/disponibilidade"
+      );
+      if (!paymentAvailability.disponivel) {
+        throw new Error("O pagamento transparente ainda não está habilitado no backend.");
+      }
+
       if (accountMode === "register") {
         await apiRequest("/api/usuarios/cadastro", {
           method: "POST",
@@ -426,22 +453,12 @@ function App() {
         })
       });
 
-      const order = await apiRequest<{ idPedido: number }>("/api/pedidos", {
+      const order = await apiRequest<{ idPedido: number; valorTotal: number }>("/api/pedidos", {
         method: "POST",
         body: JSON.stringify({ idEndereco: address.idEndereco })
       });
-      const checkout = await apiRequest<{ checkoutUrl: string }>(`/api/checkout/${order.idPedido}`, {
-        method: "POST"
-      });
-
-      const checkoutUrl = new URL(checkout.checkoutUrl);
-      if (checkoutUrl.protocol !== "https:" || checkoutUrl.hostname !== "www.mercadopago.com.br") {
-        throw new Error("O backend retornou um endereço de pagamento inválido. O pedido não foi redirecionado.");
-      }
-
-      setCart([]);
-      setCheckoutForm(defaultCheckoutForm);
-      window.location.assign(checkoutUrl.toString());
+      setPaymentOrder({ idPedido: order.idPedido, valorTotal: Number(order.valorTotal) });
+      setCheckoutStep("payment");
     } catch (error) {
       setCheckoutError(error instanceof Error ? error.message : "Não foi possível iniciar o checkout.");
       setCheckoutStep("form");
@@ -456,10 +473,49 @@ function App() {
     setCheckoutForm(defaultCheckoutForm);
     setCheckoutError("");
     setOrderResult(null);
+    setPaymentOrder(null);
+    setPaymentResult(null);
     const url = new URL(window.location.href);
     url.searchParams.delete("checkout");
     url.searchParams.delete("pedido");
     window.history.replaceState(null, "", url.toString());
+  }
+
+  async function submitPayment(data: IPaymentFormData) {
+    if (!paymentOrder) throw new Error("O pedido não está disponível para pagamento.");
+
+    setCheckoutError("");
+    const result = await apiRequest<PaymentResult>(
+      `/api/checkout/${paymentOrder.idPedido}/pagamento`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          idempotencyKey: window.crypto.randomUUID(),
+          paymentType: data.paymentType,
+          formData: data.formData
+        })
+      }
+    );
+
+    setPaymentResult(result);
+    setCart([]);
+    setCheckoutForm(defaultCheckoutForm);
+    try {
+      setOrderResult(await apiRequest<OrderResult>(`/api/pedidos/${paymentOrder.idPedido}`));
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : "Não foi possível consultar o pedido.");
+    }
+    setCheckoutStep("result");
+  }
+
+  async function copyPixCode() {
+    if (!paymentResult?.qrCode) return;
+    try {
+      await window.navigator.clipboard.writeText(paymentResult.qrCode);
+      showToast("Código Pix copiado.");
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : "Não foi possível copiar o código Pix.");
+    }
   }
 
   return (
@@ -975,16 +1031,6 @@ function App() {
                       placeholder="Apartamento, bloco, referência"
                     />
                   </label>
-                  <label className="full-width">
-                    <span>Método de pagamento</span>
-                    <select
-                      value={checkoutForm.paymentMethod}
-                      onChange={(event) => updateCheckoutField("paymentMethod", event.target.value)}
-                    >
-                      <option value="Mercado Pago">Mercado Pago (Pix ou cartão no checkout seguro)</option>
-                    </select>
-                    {checkoutErrors.paymentMethod && <small>{checkoutErrors.paymentMethod}</small>}
-                  </label>
                 </div>
 
                 <div className="checkout-summary">
@@ -1004,9 +1050,35 @@ function App() {
 
                 {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
                 <button type="submit" className="btn btn-primary btn-full" disabled={submittingCheckout}>
-                  {submittingCheckout ? "Conectando ao backend..." : "Criar pedido e ir ao pagamento"}
+                    {submittingCheckout ? "Conectando ao backend..." : "Criar pedido e continuar"}
                 </button>
               </form>
+            </div>
+          )}
+
+          {checkoutStep === "payment" && paymentOrder && (
+            <div className="checkout-shell">
+              <div className="checkout-header">
+                <div>
+                  <p className="section-tag">Pagamento seguro</p>
+                  <h2>Pedido #{paymentOrder.idPedido}</h2>
+                </div>
+                <button type="button" className="icon-close" onClick={resetCheckout} aria-label="Fechar checkout">×</button>
+              </div>
+              <p>Escolha Pix ou cartão de crédito. Os dados do cartão são enviados diretamente ao Mercado Pago.</p>
+              <div className="checkout-summary">
+                <div className="total-row">
+                  <span>Total do pedido</span>
+                  <strong>{currency.format(paymentOrder.valorTotal)}</strong>
+                </div>
+              </div>
+              {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
+              <MercadoPagoPaymentBrick
+                amount={paymentOrder.valorTotal}
+                email={checkoutForm.email.trim()}
+                onSubmit={submitPayment}
+                onError={setCheckoutError}
+              />
             </div>
           )}
 
@@ -1016,7 +1088,7 @@ function App() {
                 <div className="spinner" aria-hidden="true" />
                 <p className="section-tag">Conectando ao backend</p>
                 <h2>Preparando o pedido e o pagamento</h2>
-                <p>O pedido só será pago após a confirmação no checkout seguro do Mercado Pago.</p>
+                <p>O pedido só será confirmado após a validação do webhook do Mercado Pago.</p>
               </div>
             </div>
           )}
@@ -1024,6 +1096,24 @@ function App() {
           {checkoutStep === "result" && (
             <div className="checkout-shell status-shell">
               <div className="status-panel">
+                {paymentResult?.qrCode && paymentResult.paymentMethod === "pix" && (
+                  <div className="pix-payment-details">
+                    <h3>Pagamento via Pix</h3>
+                    {paymentResult.qrCodeBase64 && (
+                      <img
+                        src={`data:image/png;base64,${paymentResult.qrCodeBase64}`}
+                        alt="QR Code Pix do pedido"
+                      />
+                    )}
+                    <label>
+                      <span>Código Pix copia e cola</span>
+                      <textarea readOnly value={paymentResult.qrCode} rows={4} />
+                    </label>
+                    <button type="button" className="btn btn-secondary" onClick={copyPixCode}>
+                      Copiar código Pix
+                    </button>
+                  </div>
+                )}
                 {orderResult ? (
                   <>
                     <span className={`status-pill ${orderResult.pedido.status === "PAGO" ? "status-approved" : "status-pending"}`}>
@@ -1050,18 +1140,18 @@ function App() {
                         <strong>{formatPrice(Math.round(Number(orderResult.pedido.valorTotal) * 100))}</strong>
                       </div>
                     </div>
-                    <button type="button" className="btn btn-secondary" onClick={refreshOrderStatus} disabled={submittingCheckout}>
-                      {submittingCheckout ? "Atualizando..." : "Atualizar status"}
-                    </button>
                   </>
                 ) : (
                   <>
                     <span className="status-pill status-pending">Não foi possível consultar</span>
                     <h2>Confira o status do pedido</h2>
                     <p className="checkout-error" role="alert">{checkoutError}</p>
-                    <p>A transação pode ter sido iniciada, mas a loja ainda não conseguiu consultar o backend.</p>
+                    <p>Pedido #{paymentOrder?.idPedido ?? "—"}. A transação pode ter sido iniciada, mas a loja ainda não conseguiu consultar o backend.</p>
                   </>
                 )}
+                <button type="button" className="btn btn-secondary" onClick={refreshOrderStatus} disabled={submittingCheckout}>
+                  {submittingCheckout ? "Atualizando..." : "Atualizar status"}
+                </button>
                 <button type="button" className="btn btn-primary" onClick={resetCheckout}>
                   Voltar à loja
                 </button>

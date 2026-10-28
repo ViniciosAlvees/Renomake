@@ -1276,6 +1276,34 @@ button {
   font-weight: 600;
 }
 
+.pix-payment-details {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.pix-payment-details img {
+  width: min(220px, 100%);
+  height: auto;
+}
+
+.pix-payment-details label {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.pix-payment-details textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
 .account-mode {
   display: flex;
   flex-wrap: wrap;

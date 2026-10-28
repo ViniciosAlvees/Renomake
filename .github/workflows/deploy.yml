@@ -46,6 +46,8 @@ jobs:
           fi
 
       - name: Build site
+        env:
+          VITE_MP_PUBLIC_KEY: ${{ vars.VITE_MP_PUBLIC_KEY }}
         run: npm run build
 
       - name: Configure GitHub Pages

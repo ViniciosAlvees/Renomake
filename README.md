@@ -12,7 +12,7 @@ Requer Node.js 20.19+ ou 22.12+.
    npm install
    ```
 
-   O arquivo `.env.development` já configura `VITE_API_URL=https://renomake-beckend.onrender.com`, portanto não é necessário iniciar outro backend para abrir o frontend. Para usar um backend Java local, defina `VITE_API_URL=http://localhost:8080` no terminal antes de iniciar o Vite (no PowerShell: `$env:VITE_API_URL = "http://localhost:8080"`).
+   O arquivo `.env.development` já configura `VITE_API_URL=https://renomake-beckend.onrender.com`, portanto não é necessário iniciar outro backend para abrir o frontend. Para usar um backend Java local, defina `VITE_API_URL=http://localhost:8080` no terminal antes de iniciar o Vite (no PowerShell: `$env:VITE_API_URL = "http://localhost:8080"`). Configure `VITE_MP_PUBLIC_KEY` com uma chave pública de teste do Mercado Pago em `.env.development.local`; esse arquivo local é ignorado pelo Git.
 
 2. Opcional: se quiser testar com o backend Java local em vez do Render, configure suas variáveis Oracle/Mercado Pago conforme o README do repositório Java e inicie a API na porta 8080.
 
@@ -30,13 +30,14 @@ O catálogo é carregado por `GET /api/produtos`. `VITE_API_URL` deve conter som
 
 - Cadastro/login cria sessão HTTP somente no backend; a senha nunca é armazenada no navegador.
 - O checkout sincroniza os itens com o carrinho do Oracle, cadastra o endereço e cria o pedido no servidor.
-- O pedido é criado como aguardando pagamento; o backend solicita uma sessão segura ao Mercado Pago e o navegador redireciona para o checkout hospedado pelo provedor.
-- O pedido só aparece como pago depois de o webhook assinado do Mercado Pago confirmar o pagamento no banco.
-- Ao retornar à loja, o frontend consulta `GET /api/pedidos/{id}` para mostrar o estado persistido.
+- O pedido é criado como aguardando pagamento e o Payment Brick do Mercado Pago exibe Pix e cartão de crédito dentro da loja. O cartão é tokenizado pelo SDK; somente o token vai ao backend, que calcula o valor com os dados do pedido no Oracle.
+- O pedido só aparece como pago depois de o webhook assinado do Mercado Pago confirmar o pagamento no banco. O código Pix é exibido para pagamento e o status pode ser atualizado consultando o backend.
+- A chave pública é fornecida ao build pelo GitHub Actions usando a variável `VITE_MP_PUBLIC_KEY` (não é segredo). O token privado e o segredo do webhook ficam exclusivamente no backend.
+- O endpoint de pagamentos transparentes permanece desabilitado por padrão (`MP_PAYMENTS_ENABLED=false`). Não o habilite com credenciais reais até confirmar com o Mercado Pago que a conta recebedora e o repasse posterior à proprietária são permitidos e formalizados.
 
 ## Publicação
 
-O workflow `.github/workflows/deploy.yml` publica no GitHub Pages usando a URL definida em `.env.production` (`https://renomake-beckend.onrender.com`). Se a URL do backend mudar, atualize esse arquivo. No backend, configure `FRONTEND_URL` como `https://viniciosalvees.github.io/Renomake/`, `SESSION_COOKIE_SECURE=true` e `SESSION_COOKIE_SAME_SITE=none` para permitir a sessão entre domínios. Configure no Mercado Pago a URL pública `https://<backend>/api/webhooks/mercadopago`.
+O workflow `.github/workflows/deploy.yml` publica no GitHub Pages usando a URL definida em `.env.production` (`https://renomake-beckend.onrender.com`) e a variável de Actions `VITE_MP_PUBLIC_KEY`. Se a URL do backend mudar, atualize esse arquivo. No backend, configure `FRONTEND_URL` como `https://viniciosalvees.github.io/Renomake/`, `SESSION_COOKIE_SECURE=true` e `SESSION_COOKIE_SAME_SITE=none` para permitir a sessão entre domínios. Configure no Mercado Pago a URL pública `https://<backend>/api/webhooks/mercadopago`.
 
 Render só funcionará se conseguir alcançar o Oracle FIAP pela rede. Isso depende das regras de rede e disponibilidade do banco; precisa ser validado na hospedagem real.
 
