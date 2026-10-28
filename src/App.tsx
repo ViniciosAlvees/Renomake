@@ -2,14 +2,29 @@ import { useEffect, useMemo, useState } from "react";
 import logo from "../assets/images/logo.png";
 import { apiRequest, getProductImageUrl, mapApiProducts } from "./api";
 import MercadoPagoPaymentBrick, { hasMercadoPagoPublicKey } from "./MercadoPagoPaymentBrick";
-import type { Product, ProductCategory } from "./products";
+import { products as fallbackProducts, type Product, type ProductCategory } from "./products";
 import type { IPaymentFormData } from "@mercadopago/sdk-react/esm/bricks/payment/type";
 
 const whatsappNumber = "5518996115273";
 const shopeeUrl = "https://br.shp.ee/LuFR9yis";
 const cartStorageKey = "renomake-cart";
+const catalogStorageKey = "renomake-catalog";
 const categories: ProductCategory[] = ["Maquiagem", "Cuidados faciais", "Cuidados corporais"];
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+function readCatalogFromStorage(): Product[] {
+  if (typeof window === "undefined") return fallbackProducts;
+
+  try {
+    const savedCatalog = window.localStorage.getItem(catalogStorageKey);
+    if (!savedCatalog) return fallbackProducts;
+
+    const cachedProducts = mapApiProducts(JSON.parse(savedCatalog));
+    return cachedProducts.length > 0 ? cachedProducts : fallbackProducts;
+  } catch {
+    return fallbackProducts;
+  }
+}
 
 function readCartFromStorage(): CartItem[] {
   if (typeof window === "undefined") return [];
@@ -147,7 +162,7 @@ function StoreIcon({ type }: { type: "shopee" | "whatsapp" }) {
 function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<ProductCategory | "all">("all");
-  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>(() => readCatalogFromStorage());
   const [catalogState, setCatalogState] = useState<"loading" | "ready" | "error">("loading");
   const [catalogError, setCatalogError] = useState("");
   const [cart, setCart] = useState<CartItem[]>(() => readCartFromStorage());
@@ -174,11 +189,24 @@ function App() {
 
   useEffect(() => {
     let active = true;
-    setCatalogState("loading");
-    apiRequest<unknown>("/api/produtos")
-      .then(mapApiProducts)
-      .then((loadedProducts) => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 5000);
+
+    apiRequest<unknown>("/api/produtos", { signal: controller.signal })
+      .then((response) => {
+        const loadedProducts = mapApiProducts(response);
         if (!active) return;
+
+        try {
+          window.localStorage.setItem(catalogStorageKey, JSON.stringify(response));
+        } catch {
+          // Storage must not block the live catalog when it is unavailable.
+        }
+
+        return loadedProducts;
+      })
+      .then((loadedProducts) => {
+        if (!active || !loadedProducts) return;
         setCatalogProducts(loadedProducts);
         setCatalogState("ready");
         setCart((currentCart) =>
@@ -190,12 +218,19 @@ function App() {
       })
       .catch((error: unknown) => {
         if (!active) return;
+        if (controller.signal.aborted) {
+          setCatalogError("A consulta ao banco passou de 5 segundos. Os produtos continuam visíveis, mas o estoque ainda não foi confirmado.");
+          setCatalogState("error");
+          return;
+        }
         setCatalogError(error instanceof Error ? error.message : "Não foi possível carregar o catálogo.");
         setCatalogState("error");
       });
 
     return () => {
       active = false;
+      window.clearTimeout(timeoutId);
+      controller.abort();
     };
   }, []);
 
@@ -581,7 +616,11 @@ function App() {
                 <p className="detail-description">{getProductDescription(selectedProduct)}</p>
                 <strong className="detail-price">{formatPrice(selectedProduct.priceCents)}</strong>
                 <p className="detail-category">
-                  {selectedProduct.stock ? `${selectedProduct.stock} em estoque` : "Indisponível no momento"}
+                  {catalogState === "loading"
+                    ? "Confirmando estoque..."
+                    : catalogState === "error"
+                      ? "Estoque não confirmado"
+                      : selectedProduct.stock ? `${selectedProduct.stock} em estoque` : "Indisponível no momento"}
                 </p>
 
                 <div className="detail-options">
@@ -626,7 +665,7 @@ function App() {
                 <button
                   type="button"
                   className="btn btn-primary detail-add"
-                  disabled={!selectedProduct.stock || detailQuantity > selectedProduct.stock}
+                  disabled={catalogState !== "ready" || !selectedProduct.stock || detailQuantity > selectedProduct.stock}
                   onClick={() => {
                     if (!selectedColor.trim()) {
                       showToast("Informe a cor ou variação desejada.");
@@ -708,6 +747,21 @@ function App() {
               ))}
             </div>
 
+            {catalogState !== "ready" && (
+              <div className={`catalog-feedback ${catalogState}`} role={catalogState === "error" ? "alert" : "status"}>
+                <p>
+                  {catalogState === "loading"
+                    ? "Os produtos já estão visíveis. Confirmando preços e estoque com a loja..."
+                    : catalogError}
+                </p>
+                {catalogState === "error" && (
+                  <button type="button" className="btn btn-secondary" onClick={() => window.location.reload()}>
+                    Tentar novamente
+                  </button>
+                )}
+              </div>
+            )}
+
             <div
               className="product-grid"
               style={{
@@ -716,16 +770,7 @@ function App() {
               }}
               aria-live="polite"
             >
-              {catalogState === "loading" ? (
-                <div className="empty-cart no-products" role="status">Carregando produtos do banco de dados...</div>
-              ) : catalogState === "error" ? (
-                <div className="empty-cart no-products" role="alert">
-                  <p>{catalogError}</p>
-                  <button type="button" className="btn btn-secondary" onClick={() => window.location.reload()}>
-                    Tentar novamente
-                  </button>
-                </div>
-              ) : visibleProducts.length === 0 ? (
+              {visibleProducts.length === 0 ? (
                 <div className="empty-cart no-products">Nenhum produto encontrado.</div>
               ) : (
                 visibleProducts.map((product) => (
@@ -739,6 +784,7 @@ function App() {
                       type="button"
                       className="product-card-open"
                       onClick={() => openProduct(product)}
+                      disabled={catalogState !== "ready" || !product.stock}
                       aria-label={`Ver detalhes de ${product.name}`}
                     >
                       <div className="product-image-wrap" aria-hidden="true">
@@ -769,7 +815,11 @@ function App() {
                           {formatPrice(product.priceCents)}
                         </strong>
                         <span className="product-brand">
-                          {product.stock ? `${product.stock} em estoque` : "Indisponível"}
+                          {catalogState === "loading"
+                            ? "Confirmando estoque..."
+                            : catalogState === "error"
+                              ? "Estoque não confirmado"
+                              : product.stock ? `${product.stock} em estoque` : "Indisponível"}
                         </span>
                       </div>
                     </button>
@@ -783,9 +833,9 @@ function App() {
                         letterSpacing: "normal"
                       }}
                       onClick={() => openProduct(product)}
-                      disabled={!product.stock}
+                      disabled={catalogState !== "ready" || !product.stock}
                     >
-                      {product.stock ? "Escolher cor e quantidade" : "Indisponível"}
+                      {catalogState === "ready" && !product.stock ? "Indisponível" : "Comprar"}
                     </button>
                   </article>
                 ))
