@@ -1,29 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import logo from "../assets/images/logo.png";
-import { apiRequest, getProductImageUrl, mapApiProducts } from "./api";
-import MercadoPagoPaymentBrick, { hasMercadoPagoPublicKey } from "./MercadoPagoPaymentBrick";
-import type { Product, ProductCategory } from "./products";
-import type { IPaymentFormData } from "@mercadopago/sdk-react/esm/bricks/payment/type";
+import { products as fallbackProducts, type Product, type ProductCategory } from "./products";
 
 const whatsappNumber = "5518996115273";
 const shopeeUrl = "https://br.shp.ee/LuFR9yis";
-const cartStorageKey = "renomake-cart";
 const categories: ProductCategory[] = ["Maquiagem", "Cuidados faciais", "Cuidados corporais"];
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-
-function readCartFromStorage(): CartItem[] {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const savedCart = window.localStorage.getItem(cartStorageKey);
-    if (!savedCart) return [];
-
-    const parsedCart = JSON.parse(savedCart) as CartItem[];
-    return Array.isArray(parsedCart) ? parsedCart.filter((item) => item && item.product && item.color && Number.isFinite(item.quantity)) : [];
-  } catch {
-    return [];
-  }
-}
 
 function getCatalogLayout(width: number) {
   if (width >= 1024) return { columns: 4, padding: "12px", imageHeight: "160px" };
@@ -35,65 +17,6 @@ type CartItem = {
   product: Product;
   color: string;
   quantity: number;
-};
-
-type CheckoutForm = {
-  name: string;
-  email: string;
-  phone: string;
-  cep: string;
-  state: string;
-  city: string;
-  bairro: string;
-  rua: string;
-  number: string;
-  complement: string;
-  password: string;
-};
-
-type CheckoutStep = "cart" | "form" | "processing" | "payment" | "result";
-type AccountMode = "register" | "login";
-
-type PaymentOrder = {
-  idPedido: number;
-  valorTotal: number;
-};
-
-type PaymentResult = {
-  idPagamento: string;
-  status: string;
-  statusDetail: string;
-  paymentMethod: string;
-  qrCode?: string;
-  qrCodeBase64?: string;
-};
-
-type OrderResult = {
-  pedido: {
-    idPedido: number;
-    status: string;
-    valorTotal: number;
-  };
-  itens: Array<{
-    idProduto: number;
-    nome: string;
-    quantidade: number;
-    precoUnitario: number;
-  }>;
-};
-
-const defaultCheckoutForm: CheckoutForm = {
-  name: "",
-  email: "",
-  phone: "",
-  cep: "",
-  state: "",
-  city: "",
-  bairro: "",
-  rua: "",
-  number: "",
-  complement: "",
-  password: ""
 };
 
 function formatPrice(priceCents: number): string {
@@ -147,10 +70,8 @@ function StoreIcon({ type }: { type: "shopee" | "whatsapp" }) {
 function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<ProductCategory | "all">("all");
-  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
-  const [catalogState, setCatalogState] = useState<"loading" | "ready" | "error">("loading");
-  const [catalogError, setCatalogError] = useState("");
-  const [cart, setCart] = useState<CartItem[]>(() => readCartFromStorage());
+  const catalogProducts = fallbackProducts;
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(() => {
@@ -161,60 +82,7 @@ function App() {
   const [selectedColor, setSelectedColor] = useState("");
   const [detailQuantity, setDetailQuantity] = useState(1);
   const [catalogLayout, setCatalogLayout] = useState(() => getCatalogLayout(typeof window === "undefined" ? 1280 : window.innerWidth));
-  const [checkoutStep, setCheckoutStep] = useState<CheckoutStep>("cart");
-  const [accountMode, setAccountMode] = useState<AccountMode>("register");
-  const [checkoutForm, setCheckoutForm] = useState<CheckoutForm>(defaultCheckoutForm);
-  const [checkoutErrors, setCheckoutErrors] = useState<Partial<Record<keyof CheckoutForm, string>>>({});
-  const [checkoutError, setCheckoutError] = useState("");
-  const [orderResult, setOrderResult] = useState<OrderResult | null>(null);
-  const [paymentOrder, setPaymentOrder] = useState<PaymentOrder | null>(null);
-  const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
-  const [submittingCheckout, setSubmittingCheckout] = useState(false);
   const selectedProduct = catalogProducts.find((product) => product.id === selectedProductId) ?? null;
-
-  useEffect(() => {
-    let active = true;
-    setCatalogState("loading");
-    apiRequest<unknown>("/api/produtos")
-      .then(mapApiProducts)
-      .then((loadedProducts) => {
-        if (!active) return;
-        setCatalogProducts(loadedProducts);
-        setCatalogState("ready");
-        setCart((currentCart) =>
-          currentCart.flatMap((item) => {
-            const currentProduct = loadedProducts.find((product) => product.id === item.product.id);
-            return currentProduct ? [{ ...item, product: currentProduct }] : [];
-          })
-        );
-      })
-      .catch((error: unknown) => {
-        if (!active) return;
-        setCatalogError(error instanceof Error ? error.message : "Não foi possível carregar o catálogo.");
-        setCatalogState("error");
-      });
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const orderId = params.get("pedido");
-    if (!orderId || !/^\d+$/.test(orderId) || !params.has("checkout")) return;
-
-    setCheckoutStep("processing");
-    apiRequest<OrderResult>(`/api/pedidos/${orderId}`)
-      .then((result) => {
-        setOrderResult(result);
-        setCheckoutStep("result");
-      })
-      .catch((error: unknown) => {
-        setCheckoutError(error instanceof Error ? error.message : "Não foi possível consultar o pedido.");
-        setCheckoutStep("result");
-      });
-  }, []);
 
   const visibleProducts = useMemo(() => {
     const term = normalizeText(searchTerm.trim());
@@ -228,31 +96,6 @@ function App() {
   const cartCount = cart.reduce((total, item) => total + item.quantity, 0);
   const cartTotalCents = cart.reduce((total, item) => total + item.product.priceCents * item.quantity, 0);
 
-  async function refreshOrderStatus() {
-    const idPedido = orderResult?.pedido.idPedido ?? paymentOrder?.idPedido;
-    if (!idPedido) return;
-    setSubmittingCheckout(true);
-    setCheckoutError("");
-    try {
-      const updatedOrder = await apiRequest<OrderResult>(`/api/pedidos/${idPedido}`);
-      setOrderResult(updatedOrder);
-    } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : "Não foi possível atualizar o pedido.");
-    } finally {
-      setSubmittingCheckout(false);
-    }
-  }
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    try {
-      window.localStorage.setItem(cartStorageKey, JSON.stringify(cart));
-    } catch {
-      // Ignora falhas de persistência em ambientes sem suporte de armazenamento.
-    }
-  }, [cart]);
-
   useEffect(() => {
     if (!toast) return undefined;
     const timeout = window.setTimeout(() => setToast(""), 1800);
@@ -261,14 +104,11 @@ function App() {
 
   useEffect(() => {
     function closeOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setCartOpen(false);
-        if (checkoutStep !== "cart") setCheckoutStep("cart");
-      }
+      if (event.key === "Escape") setCartOpen(false);
     }
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [checkoutStep]);
+  }, []);
 
   useEffect(() => {
     function updateSelectedProduct() {
@@ -351,171 +191,23 @@ function App() {
       return;
     }
 
-    setCheckoutStep("form");
-    setCartOpen(false);
-  }
-
-  function updateCheckoutField(field: keyof CheckoutForm, value: string) {
-    setCheckoutForm((current) => ({ ...current, [field]: value }));
-    setCheckoutErrors((current) => ({ ...current, [field]: undefined }));
-  }
-
-  function validateCheckoutForm() {
-    const nextErrors: Partial<Record<keyof CheckoutForm, string>> = {};
-
-    if (accountMode === "register" && !checkoutForm.name.trim()) nextErrors.name = "Informe o nome completo.";
-    if (!checkoutForm.email.trim() || !checkoutForm.email.includes("@")) {
-      nextErrors.email = "Informe um e-mail válido.";
-    }
-    if (!checkoutForm.password || checkoutForm.password.length < 8) {
-      nextErrors.password = "A senha deve conter pelo menos 8 caracteres.";
-    }
-    if (!checkoutForm.cep.trim()) nextErrors.cep = "Informe o CEP.";
-    if (!checkoutForm.state.trim()) nextErrors.state = "Informe o estado.";
-    if (!checkoutForm.city.trim()) nextErrors.city = "Informe a cidade.";
-    if (!checkoutForm.bairro.trim()) nextErrors.bairro = "Informe o bairro.";
-    if (!checkoutForm.rua.trim()) nextErrors.rua = "Informe a rua.";
-    if (!checkoutForm.number.trim()) nextErrors.number = "Informe o número.";
-    setCheckoutErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  }
-
-  async function submitCheckout(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!hasMercadoPagoPublicKey) {
-      setCheckoutError("O pagamento está indisponível: configure VITE_MP_PUBLIC_KEY antes de iniciar um pedido.");
-      return;
-    }
-
-    if (!validateCheckoutForm()) {
-      showToast("Revise os dados antes de continuar.");
-      return;
-    }
-
-    setCheckoutError("");
-    setSubmittingCheckout(true);
-    setCheckoutStep("processing");
-
-    try {
-      const paymentAvailability = await apiRequest<{ disponivel: boolean }>(
-        "/api/checkout/disponibilidade"
-      );
-      if (!paymentAvailability.disponivel) {
-        throw new Error("O pagamento transparente ainda não está habilitado no backend.");
-      }
-
-      if (accountMode === "register") {
-        await apiRequest("/api/usuarios/cadastro", {
-          method: "POST",
-          body: JSON.stringify({
-            nome: checkoutForm.name.trim(),
-            email: checkoutForm.email.trim(),
-            senha: checkoutForm.password,
-            telefone: checkoutForm.phone.trim()
-          })
-        });
-      } else {
-        await apiRequest("/api/usuarios/login", {
-          method: "POST",
-          body: JSON.stringify({
-            email: checkoutForm.email.trim(),
-            senha: checkoutForm.password
-          })
-        });
-      }
-
-      const currentRemoteCart = await apiRequest<Array<{ idProduto: number }>>("/api/carrinho");
-      for (const item of currentRemoteCart) {
-        await apiRequest(`/api/carrinho/itens/${item.idProduto}`, { method: "DELETE" });
-      }
-      for (const item of cart) {
-        const idProduto = Number(item.product.id);
-        if (!Number.isSafeInteger(idProduto) || idProduto <= 0) {
-          throw new Error("O catálogo retornou um identificador de produto inválido.");
-        }
-        await apiRequest("/api/carrinho/itens", {
-          method: "POST",
-          body: JSON.stringify({ idProduto, quantidade: item.quantity })
-        });
-      }
-
-      const address = await apiRequest<{ idEndereco: number }>("/api/enderecos", {
-        method: "POST",
-        body: JSON.stringify({
-          cep: checkoutForm.cep,
-          estado: checkoutForm.state,
-          cidade: checkoutForm.city,
-          bairro: checkoutForm.bairro,
-          rua: checkoutForm.rua,
-          numero: checkoutForm.number,
-          complemento: checkoutForm.complement
-        })
-      });
-
-      const order = await apiRequest<{ idPedido: number; valorTotal: number }>("/api/pedidos", {
-        method: "POST",
-        body: JSON.stringify({ idEndereco: address.idEndereco })
-      });
-      setPaymentOrder({ idPedido: order.idPedido, valorTotal: Number(order.valorTotal) });
-      setCheckoutStep("payment");
-    } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : "Não foi possível iniciar o checkout.");
-      setCheckoutStep("form");
-    } finally {
-      setSubmittingCheckout(false);
-    }
-  }
-
-  function resetCheckout() {
-    setCheckoutStep("cart");
-    setCheckoutErrors({});
-    setCheckoutForm(defaultCheckoutForm);
-    setCheckoutError("");
-    setOrderResult(null);
-    setPaymentOrder(null);
-    setPaymentResult(null);
-    const url = new URL(window.location.href);
-    url.searchParams.delete("checkout");
-    url.searchParams.delete("pedido");
-    window.history.replaceState(null, "", url.toString());
-  }
-
-  async function submitPayment(data: IPaymentFormData) {
-    if (!paymentOrder) throw new Error("O pedido não está disponível para pagamento.");
-
-    setCheckoutError("");
-    const result = await apiRequest<PaymentResult>(
-      `/api/checkout/${paymentOrder.idPedido}/pagamento`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          idempotencyKey: window.crypto.randomUUID(),
-          paymentType: data.paymentType,
-          formData: data.formData
-        })
-      }
+    const lines = cart.map(
+      ({ product, color, quantity }) =>
+        `- Produto: ${product.name} | Cor/variação: ${color} | Quantidade: ${quantity} | Subtotal: ${formatPrice(product.priceCents * quantity)}`
     );
+    const message = [
+      "Olá! Gostaria de realizar um pedido na Renomake.",
+      "",
+      "Produtos:",
+      ...lines,
+      "",
+      `Total: ${formatPrice(cartTotalCents)}`,
+      "",
+      "Gostaria de combinar o pagamento e a entrega."
+    ].join("\n");
 
-    setPaymentResult(result);
-    setCart([]);
-    setCheckoutForm(defaultCheckoutForm);
-    try {
-      setOrderResult(await apiRequest<OrderResult>(`/api/pedidos/${paymentOrder.idPedido}`));
-    } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : "Não foi possível consultar o pedido.");
-    }
-    setCheckoutStep("result");
-  }
-
-  async function copyPixCode() {
-    if (!paymentResult?.qrCode) return;
-    try {
-      await window.navigator.clipboard.writeText(paymentResult.qrCode);
-      showToast("Código Pix copiado.");
-    } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : "Não foi possível copiar o código Pix.");
-    }
+    window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+    setCartOpen(false);
   }
 
   return (
@@ -567,7 +259,7 @@ function App() {
             </button>
             <div className="detail-layout">
               {selectedProduct.image ? (
-                <img className="detail-image" src={getProductImageUrl(selectedProduct.image)} alt={selectedProduct.name} />
+                <img className="detail-image" src={selectedProduct.image} alt={selectedProduct.name} />
               ) : (
                 <div className="detail-image product-image-placeholder" role="img" aria-label={`Imagem indisponível para ${selectedProduct.name}`}>
                   <span className="placeholder-sparkle" aria-hidden="true">✧</span>
@@ -580,9 +272,6 @@ function App() {
                 <h1 id="detail-title">{selectedProduct.name}</h1>
                 <p className="detail-description">{getProductDescription(selectedProduct)}</p>
                 <strong className="detail-price">{formatPrice(selectedProduct.priceCents)}</strong>
-                <p className="detail-category">
-                  {selectedProduct.stock ? `${selectedProduct.stock} em estoque` : "Indisponível no momento"}
-                </p>
 
                 <div className="detail-options">
                   <span className="detail-option-label">Cor ou variação</span>
@@ -615,8 +304,7 @@ function App() {
                     <button
                       type="button"
                       aria-label="Aumentar quantidade"
-                      disabled={detailQuantity >= (selectedProduct.stock ?? 0)}
-                      onClick={() => setDetailQuantity((quantity) => Math.min(selectedProduct.stock ?? 0, quantity + 1))}
+                      onClick={() => setDetailQuantity((quantity) => quantity + 1)}
                     >
                       +
                     </button>
@@ -626,17 +314,9 @@ function App() {
                 <button
                   type="button"
                   className="btn btn-primary detail-add"
-                  disabled={!selectedProduct.stock || detailQuantity > selectedProduct.stock}
                   onClick={() => {
                     if (!selectedColor.trim()) {
                       showToast("Informe a cor ou variação desejada.");
-                      return;
-                    }
-                    const alreadyInCart = cart
-                      .filter((item) => item.product.id === selectedProduct.id)
-                      .reduce((total, item) => total + item.quantity, 0);
-                    if (alreadyInCart + detailQuantity > (selectedProduct.stock ?? 0)) {
-                      showToast("A quantidade solicitada excede o estoque disponível.");
                       return;
                     }
                     addToCart(selectedProduct, selectedColor.trim(), detailQuantity);
@@ -716,16 +396,7 @@ function App() {
               }}
               aria-live="polite"
             >
-              {catalogState === "loading" ? (
-                <div className="empty-cart no-products" role="status">Carregando produtos do banco de dados...</div>
-              ) : catalogState === "error" ? (
-                <div className="empty-cart no-products" role="alert">
-                  <p>{catalogError}</p>
-                  <button type="button" className="btn btn-secondary" onClick={() => window.location.reload()}>
-                    Tentar novamente
-                  </button>
-                </div>
-              ) : visibleProducts.length === 0 ? (
+              {visibleProducts.length === 0 ? (
                 <div className="empty-cart no-products">Nenhum produto encontrado.</div>
               ) : (
                 visibleProducts.map((product) => (
@@ -745,7 +416,7 @@ function App() {
                         {product.image ? (
                           <img
                             className="product-image"
-                            src={getProductImageUrl(product.image)}
+                            src={product.image ?? ""}
                             alt=""
                             loading="lazy"
                             style={{ height: catalogLayout.imageHeight }}
@@ -768,9 +439,6 @@ function App() {
                         <strong className="product-price" style={{ fontSize: "1rem" }}>
                           {formatPrice(product.priceCents)}
                         </strong>
-                        <span className="product-brand">
-                          {product.stock ? `${product.stock} em estoque` : "Indisponível"}
-                        </span>
                       </div>
                     </button>
                     <button
@@ -783,9 +451,8 @@ function App() {
                         letterSpacing: "normal"
                       }}
                       onClick={() => openProduct(product)}
-                      disabled={!product.stock}
                     >
-                      {product.stock ? "Escolher cor e quantidade" : "Indisponível"}
+                      Comprar
                     </button>
                   </article>
                 ))
@@ -840,7 +507,7 @@ function App() {
             cart.map(({ product, color, quantity }) => (
               <div className="cart-item" key={`${product.id}-${normalizeText(color)}`}>
                 {product.image ? (
-                  <img className="cart-image-placeholder" src={getProductImageUrl(product.image)} alt="" />
+                  <img className="cart-image-placeholder" src={product.image ?? ""} alt="" />
                 ) : (
                   <div className="cart-image-placeholder" aria-hidden="true">✧</div>
                 )}
@@ -861,7 +528,6 @@ function App() {
                       <button
                         type="button"
                         aria-label="Aumentar quantidade"
-                        disabled={quantity >= (product.stock ?? 0)}
                         onClick={() => changeQuantity(product.id, color, 1)}
                       >
                         +
@@ -887,279 +553,11 @@ function App() {
             <strong>{formatPrice(cartTotalCents)}</strong>
           </div>
           <button type="button" className="btn btn-primary btn-full" onClick={openCheckout}>
-            FINALIZAR PEDIDO
+            FINALIZAR PEDIDO PELO WHATSAPP
           </button>
         </div>
       </aside>
 
-      {checkoutStep !== "cart" && (
-        <div className="checkout-overlay" aria-modal="true" role="dialog">
-          {checkoutStep === "form" && (
-            <div className="checkout-shell">
-              <div className="checkout-header">
-                <div>
-                  <p className="section-tag">Checkout</p>
-                  <h2>Dados do pedido</h2>
-                </div>
-                <button type="button" className="icon-close" onClick={resetCheckout} aria-label="Fechar checkout">×</button>
-              </div>
-
-              <form className="checkout-form" onSubmit={submitCheckout} noValidate>
-                <div className="account-mode" role="group" aria-label="Tipo de acesso">
-                  <button
-                    type="button"
-                    className={`filter-btn${accountMode === "register" ? " active" : ""}`}
-                    aria-pressed={accountMode === "register"}
-                    onClick={() => setAccountMode("register")}
-                  >
-                    Criar conta
-                  </button>
-                  <button
-                    type="button"
-                    className={`filter-btn${accountMode === "login" ? " active" : ""}`}
-                    aria-pressed={accountMode === "login"}
-                    onClick={() => setAccountMode("login")}
-                  >
-                    Já tenho conta
-                  </button>
-                </div>
-                <div className="checkout-form-grid">
-                  {accountMode === "register" && (
-                    <label>
-                      <span>Nome completo</span>
-                      <input
-                        autoComplete="name"
-                        value={checkoutForm.name}
-                        onChange={(event) => updateCheckoutField("name", event.target.value)}
-                        placeholder="Seu nome"
-                      />
-                      {checkoutErrors.name && <small>{checkoutErrors.name}</small>}
-                    </label>
-                  )}
-                  <label>
-                    <span>E-mail</span>
-                    <input
-                      type="email"
-                      autoComplete="email"
-                      value={checkoutForm.email}
-                      onChange={(event) => updateCheckoutField("email", event.target.value)}
-                      placeholder="seu@email.com"
-                    />
-                    {checkoutErrors.email && <small>{checkoutErrors.email}</small>}
-                  </label>
-                  {accountMode === "register" && (
-                    <label>
-                      <span>Telefone (opcional)</span>
-                      <input
-                        autoComplete="tel"
-                        value={checkoutForm.phone}
-                        onChange={(event) => updateCheckoutField("phone", event.target.value)}
-                        placeholder="(99) 99999-9999"
-                      />
-                    </label>
-                  )}
-                  <label>
-                    <span>Senha</span>
-                    <input
-                      type="password"
-                      autoComplete={accountMode === "register" ? "new-password" : "current-password"}
-                      value={checkoutForm.password}
-                      onChange={(event) => updateCheckoutField("password", event.target.value)}
-                      minLength={8}
-                    />
-                    {checkoutErrors.password && <small>{checkoutErrors.password}</small>}
-                  </label>
-                  <label>
-                    <span>CEP</span>
-                    <input
-                      value={checkoutForm.cep}
-                      onChange={(event) => updateCheckoutField("cep", event.target.value)}
-                      placeholder="00000-000"
-                    />
-                    {checkoutErrors.cep && <small>{checkoutErrors.cep}</small>}
-                  </label>
-                  <label>
-                    <span>Estado</span>
-                    <input
-                      value={checkoutForm.state}
-                      onChange={(event) => updateCheckoutField("state", event.target.value)}
-                      placeholder="SP"
-                    />
-                    {checkoutErrors.state && <small>{checkoutErrors.state}</small>}
-                  </label>
-                  <label>
-                    <span>Cidade</span>
-                    <input
-                      value={checkoutForm.city}
-                      onChange={(event) => updateCheckoutField("city", event.target.value)}
-                      placeholder="São Paulo"
-                    />
-                    {checkoutErrors.city && <small>{checkoutErrors.city}</small>}
-                  </label>
-                  <label>
-                    <span>Bairro</span>
-                    <input
-                      value={checkoutForm.bairro}
-                      onChange={(event) => updateCheckoutField("bairro", event.target.value)}
-                      placeholder="Centro"
-                    />
-                    {checkoutErrors.bairro && <small>{checkoutErrors.bairro}</small>}
-                  </label>
-                  <label>
-                    <span>Rua</span>
-                    <input
-                      value={checkoutForm.rua}
-                      onChange={(event) => updateCheckoutField("rua", event.target.value)}
-                      placeholder="Rua das Flores"
-                    />
-                    {checkoutErrors.rua && <small>{checkoutErrors.rua}</small>}
-                  </label>
-                  <label>
-                    <span>Número</span>
-                    <input
-                      value={checkoutForm.number}
-                      onChange={(event) => updateCheckoutField("number", event.target.value)}
-                      placeholder="123"
-                    />
-                    {checkoutErrors.number && <small>{checkoutErrors.number}</small>}
-                  </label>
-                  <label className="full-width">
-                    <span>Complemento</span>
-                    <input
-                      value={checkoutForm.complement}
-                      onChange={(event) => updateCheckoutField("complement", event.target.value)}
-                      placeholder="Apartamento, bloco, referência"
-                    />
-                  </label>
-                </div>
-
-                <div className="checkout-summary">
-                  <div>
-                    <span>Subtotal</span>
-                    <strong>{formatPrice(cartTotalCents)}</strong>
-                  </div>
-                  <div>
-                    <span>Frete</span>
-                    <strong>R$ 0,00</strong>
-                  </div>
-                  <div className="total-row">
-                    <span>Total</span>
-                    <strong>{formatPrice(cartTotalCents)}</strong>
-                  </div>
-                </div>
-
-                {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
-                <button type="submit" className="btn btn-primary btn-full" disabled={submittingCheckout}>
-                    {submittingCheckout ? "Conectando ao backend..." : "Criar pedido e continuar"}
-                </button>
-              </form>
-            </div>
-          )}
-
-          {checkoutStep === "payment" && paymentOrder && (
-            <div className="checkout-shell">
-              <div className="checkout-header">
-                <div>
-                  <p className="section-tag">Pagamento seguro</p>
-                  <h2>Pedido #{paymentOrder.idPedido}</h2>
-                </div>
-                <button type="button" className="icon-close" onClick={resetCheckout} aria-label="Fechar checkout">×</button>
-              </div>
-              <p>Escolha Pix ou cartão de crédito. Os dados do cartão são enviados diretamente ao Mercado Pago.</p>
-              <div className="checkout-summary">
-                <div className="total-row">
-                  <span>Total do pedido</span>
-                  <strong>{currency.format(paymentOrder.valorTotal)}</strong>
-                </div>
-              </div>
-              {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
-              <MercadoPagoPaymentBrick
-                amount={paymentOrder.valorTotal}
-                email={checkoutForm.email.trim()}
-                onSubmit={submitPayment}
-                onError={setCheckoutError}
-              />
-            </div>
-          )}
-
-          {checkoutStep === "processing" && (
-            <div className="checkout-shell status-shell">
-              <div className="status-panel">
-                <div className="spinner" aria-hidden="true" />
-                <p className="section-tag">Conectando ao backend</p>
-                <h2>Preparando o pedido e o pagamento</h2>
-                <p>O pedido só será confirmado após a validação do webhook do Mercado Pago.</p>
-              </div>
-            </div>
-          )}
-
-          {checkoutStep === "result" && (
-            <div className="checkout-shell status-shell">
-              <div className="status-panel">
-                {paymentResult?.qrCode && paymentResult.paymentMethod === "pix" && (
-                  <div className="pix-payment-details">
-                    <h3>Pagamento via Pix</h3>
-                    {paymentResult.qrCodeBase64 && (
-                      <img
-                        src={`data:image/png;base64,${paymentResult.qrCodeBase64}`}
-                        alt="QR Code Pix do pedido"
-                      />
-                    )}
-                    <label>
-                      <span>Código Pix copia e cola</span>
-                      <textarea readOnly value={paymentResult.qrCode} rows={4} />
-                    </label>
-                    <button type="button" className="btn btn-secondary" onClick={copyPixCode}>
-                      Copiar código Pix
-                    </button>
-                  </div>
-                )}
-                {orderResult ? (
-                  <>
-                    <span className={`status-pill ${orderResult.pedido.status === "PAGO" ? "status-approved" : "status-pending"}`}>
-                      {orderResult.pedido.status === "PAGO" ? "Pagamento confirmado" : orderResult.pedido.status.replaceAll("_", " ")}
-                    </span>
-                    <p className="section-tag">Pedido #{orderResult.pedido.idPedido}</p>
-                    <h2>
-                      {orderResult.pedido.status === "PAGO"
-                        ? "Pagamento aprovado"
-                        : "Aguardando confirmação do pagamento"}
-                    </h2>
-                    <p>Este status veio do backend e do banco de dados da loja.</p>
-                    <div className="order-items-list">
-                      {orderResult.itens.map((item) => (
-                        <div className="order-items-list-item" key={item.idProduto}>
-                          <span>{item.nome} × {item.quantidade}</span>
-                          <strong>{formatPrice(Math.round(Number(item.precoUnitario) * item.quantidade * 100))}</strong>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="checkout-summary">
-                      <div className="total-row">
-                        <span>Total do pedido</span>
-                        <strong>{formatPrice(Math.round(Number(orderResult.pedido.valorTotal) * 100))}</strong>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <span className="status-pill status-pending">Não foi possível consultar</span>
-                    <h2>Confira o status do pedido</h2>
-                    <p className="checkout-error" role="alert">{checkoutError}</p>
-                    <p>Pedido #{paymentOrder?.idPedido ?? "—"}. A transação pode ter sido iniciada, mas a loja ainda não conseguiu consultar o backend.</p>
-                  </>
-                )}
-                <button type="button" className="btn btn-secondary" onClick={refreshOrderStatus} disabled={submittingCheckout}>
-                  {submittingCheckout ? "Atualizando..." : "Atualizar status"}
-                </button>
-                <button type="button" className="btn btn-primary" onClick={resetCheckout}>
-                  Voltar à loja
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       <div className={`toast${toast ? " visible" : ""}`} role="status" aria-live="polite">
         {toast}
